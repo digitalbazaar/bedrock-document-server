@@ -1,0 +1,10 @@
+{
+  "env": {
+    "esVersion": 6,
+    "mocha": true
+  },
+  "globals": {
+    "assertNoError": true,
+    "should": true
+  }
+}
