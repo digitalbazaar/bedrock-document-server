@@ -21,9 +21,9 @@ roles['bedrock-document-server.test'] = {
   label: 'Test Role',
   comment: 'Role for Test User',
   sysPermission: [
-    permissions.DOCUMENT_SERVER_ACCESS.id,
-    permissions.DOCUMENT_SERVER_CREATE.id,
-    permissions.DOCUMENT_SERVER_REMOVE.id
+    permissions.DOCUMENT_ACCESS.id,
+    permissions.DOCUMENT_CREATE.id,
+    permissions.DOCUMENT_REMOVE.id
   ]
 };
 
