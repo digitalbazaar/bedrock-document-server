@@ -28,8 +28,15 @@ roles['bedrock-document-server.test'] = {
 };
 
 config['document-server'].endpoints.push({
-  route: '/test1'
+  route: '/test0'
 });
 config['document-server'].endpoints.push({
-  route: '/test2'
+  route: '/test1',
+  mimeTypes: [
+    'text/plain'
+  ],
+  limits: {
+    files: 1,
+    fileSize: 1
+  }
 });

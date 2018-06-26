@@ -4,8 +4,10 @@
 'use strict';
 
 const async = require('async');
+const base64url = require('base64url');
 const bedrock = require('bedrock');
 const brIdentity = require('bedrock-identity');
+const crypto = require('crypto');
 const fs = require('fs');
 const helpers = require('./helpers');
 const mockData = require('./mock.data');
@@ -22,8 +24,11 @@ rp = rp.defaults({
   resolveWithFullResponse: true
 });
 
-const endpoint = bedrock.config.server.baseUri +
-  bedrock.config['document-server'].endpoints[0].route;
+const endpointInfo0 = bedrock.config['document-server'].endpoints[0];
+const endpoint0 = bedrock.config.server.baseUri + endpointInfo0.route;
+
+const endpointInfo1 = bedrock.config['document-server'].endpoints[1];
+const endpoint1 = bedrock.config.server.baseUri + endpointInfo1.route;
 
 describe('HTTP API', () => {
   before(done => {
@@ -44,50 +49,98 @@ describe('HTTP API', () => {
     }, done));
     */
 
-    async function _postDoc({salt = ''}) {
-      const content = 'IAMDOC' + salt;
-      const contentFilename = 'imadoc.txt';
-      const contentType = 'text/plain';
-
+    async function _postDocs({
+      endpoint = null,
+      salt = '',
+      content = 'IMADOC',
+      contentFilename = 'imadoc.txt',
+      contentType = 'text/plain',
+      attachmentCount = 1
+    }) {
+      should.exist(endpoint);
+      const attachments = [];
+      function _content(i) {
+        return salt + content + '-' + i;
+      }
+      for(let i = 0; i < attachmentCount; ++i) {
+        attachments.push({
+          value: _content(i),
+          options: {
+            filename: contentFilename,
+            contentType: contentType
+          }
+        });
+      }
       const postRes = await rp({
         url: endpoint,
         method: 'POST',
         formData: {
           //attachment: fs.createReadStream(__dirname + '/mock.data.js')
-          attachment: {
-            value: content,
-            options: {
-              filename: contentFilename,
-              contentType: contentType
-            }
-          }
+          attachment: attachments,
         }
       });
       should.exist(postRes.body);
       postRes.statusCode.should.equal(200);
-      postRes.body.should.be.an('object');
-      should.exist(postRes.body.id);
-      postRes.body.id.should.be.a('string');
-      should.exist(postRes.body.proof);
-      postRes.body.proof.type.should.equal('MessageDigest');
-      should.exist(postRes.body.proof.mimeType);
-      postRes.body.proof.mimeType.should.equal(contentType);
-      should.exist(postRes.body.proof.digestAlgorithm);
-      should.exist(postRes.body.proof.digestValue);
-      should.exist(postRes.body.proof.created);
+      function _checkResult(i, data) {
+        data.should.be.an('object');
+        should.exist(data.id);
+        data.id.should.be.a('string');
+        should.exist(data.proof);
+        data.proof.type.should.equal('MessageDigest');
+        should.exist(data.proof.mimeType);
+        data.proof.mimeType.should.equal(contentType);
+        should.exist(data.proof.digestAlgorithm);
+        data.proof.digestAlgorithm.should.equal('sha256');
+        should.exist(data.proof.digestValue);
+        const hash =
+          base64url(
+            crypto
+              .createHash('sha256')
+              .update(_content(i))
+              .digest());
+        data.proof.digestValue.should.equal(hash);
+        should.exist(data.proof.created);
+      }
 
-      return {
-        id: postRes.body.id,
-        content,
-        contentFilename,
-        contentType
-      };
+      let result;
+      if(attachments.length === 1) {
+        postRes.body.should.be.an('object');
+        _checkResult(0, postRes.body);
+        result = {
+          id: postRes.body.id,
+          content: _content(0),
+          contentFilename,
+          contentType
+        };
+      } else {
+        postRes.body.should.be.an('array');
+        postRes.body.length.should.equal(attachmentCount);
+        result = [];
+        for(let i = 0; i < attachmentCount; ++i) {
+          _checkResult(i, postRes.body[i]);
+          result.push({
+            id: postRes.body[i].id,
+            content: _content(i),
+            contentFilename,
+            contentType
+          });
+        }
+      }
+
+      return result;
     }
     it('should post doc', async () => {
-      await _postDoc({salt: '[post]'});
+      await _postDocs({
+        endpoint: endpoint0,
+        salt: '[post]'
+      });
     });
     it('should get doc', async () => {
-      const docInfo = await _postDoc({salt: '[post+get]'});
+      const docInfo = await _postDocs({
+        endpoint: endpoint0,
+        salt: '[post+get]'
+      });
+      //console.log('PG', docInfo);
       const getRes = await rp({
         url: docInfo.id
       });
@@ -102,7 +155,7 @@ describe('HTTP API', () => {
     it.skip('should post many docs', async () => {
       // TODO
       const postRes = await rp({
-        url: endpoint,
+        url: endpoint0,
         method: 'POST',
         formData: {
           //attachments: [
@@ -118,6 +171,50 @@ describe('HTTP API', () => {
       postRes.body.should.be.an('object');
       // ... check more data
       // ... get and check each resource
+    });
+    it('should fail if over file limit', async () => {
+      let err;
+      try {
+        await _postDocs({
+          endpoint: endpoint1
+        });
+      } catch(e) {
+        // FIXME: check error
+        e.statusCode.should.equal(500);
+        err = e;
+      }
+      should.exist(err)
+      // TODO: more checks
+    });
+    it('should fail if over file size limit', async () => {
+      let err;
+      try {
+        await _postDocs({
+          endpoint: endpoint1,
+          content: '01234567890'
+        });
+      } catch(e) {
+        // FIXME: check error
+        e.statusCode.should.equal(500);
+        err = e;
+      }
+      should.exist(err)
+      // TODO: more checks
+    });
+    it('should fail if unknown mimetype', async () => {
+      let err;
+      try {
+        await _postDocs({
+          endpoint: endpoint1,
+          contentType: 'bogus/type'
+        });
+      } catch(e) {
+        // FIXME: check error
+        e.statusCode.should.equal(406);
+        err = e;
+      }
+      should.exist(err)
+      // TODO: more checks
     });
     it.skip('should post duplicate doc', async () => {
       // TODO
