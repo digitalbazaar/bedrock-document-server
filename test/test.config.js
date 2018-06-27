@@ -28,15 +28,19 @@ roles['bedrock-document-server.test'] = {
 };
 
 config['document-server'].endpoints.push({
-  route: '/test0'
+  route: '/test-default',
 });
 config['document-server'].endpoints.push({
-  route: '/test1',
+  route: '/test-types-and-limits',
   mimeTypes: [
     'text/plain'
   ],
   limits: {
     files: 1,
-    fileSize: 1
+    fileSize: 2
   }
+});
+config['document-server'].endpoints.push({
+  route: '/test-dups',
+  duplicatePolicy: 'share'
 });
