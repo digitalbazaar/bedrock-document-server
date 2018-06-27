@@ -341,7 +341,7 @@ describe('HTTP API', () => {
       should.exist(err)
       // TODO: more checks
     });
-    it.only('should deny duplicate doc', async () => {
+    it('should deny duplicate doc', async () => {
       const docs = [{
         content: '[dup]',
         contentType: 'text/plain'
@@ -370,7 +370,7 @@ describe('HTTP API', () => {
       // TODO
       // files have hash ids, what should this do?
     });
-    it.only('should share duplicate doc', async () => {
+    it('should share duplicate doc', async () => {
       const docs = [{
         content: '[dup]',
         contentType: 'text/plain'
