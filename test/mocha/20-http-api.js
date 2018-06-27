@@ -7,6 +7,7 @@ const async = require('async');
 const base64url = require('base64url');
 const bedrock = require('bedrock');
 const brIdentity = require('bedrock-identity');
+const contentType = require('content-type');
 const crypto = require('crypto');
 const fs = require('fs');
 const helpers = require('./helpers');
@@ -24,14 +25,21 @@ rp = rp.defaults({
   resolveWithFullResponse: true
 });
 
+// basic
 const endpointInfo0 = bedrock.config['document-server'].endpoints[0];
 const endpoint0 = bedrock.config.server.baseUri + endpointInfo0.route;
 
+// types/limits
 const endpointInfo1 = bedrock.config['document-server'].endpoints[1];
 const endpoint1 = bedrock.config.server.baseUri + endpointInfo1.route;
 
+// dups
 const endpointInfo2 = bedrock.config['document-server'].endpoints[2];
 const endpoint2 = bedrock.config.server.baseUri + endpointInfo2.route;
+
+// json
+const endpointInfo3 = bedrock.config['document-server'].endpoints[3];
+const endpoint3 = bedrock.config.server.baseUri + endpointInfo3.route;
 
 describe('HTTP API', () => {
   before(done => {
@@ -100,7 +108,9 @@ describe('HTTP API', () => {
         should.exist(data.proof);
         data.proof.type.should.equal('MessageDigest2018');
         should.exist(data.proof.mimeType);
-        data.proof.mimeType.should.equal(doc.contentType);
+        // just check the media type
+        const mimeType = contentType.parse(doc.contentType).type;
+        data.proof.mimeType.should.equal(mimeType);
         should.exist(data.proof.digestAlgorithm);
         data.proof.digestAlgorithm.should.equal('sha256');
         should.exist(data.proof.digestValue);
@@ -151,8 +161,18 @@ describe('HTTP API', () => {
       await _postDocs({
         endpoint: endpoint0,
         docs: [{
-          content: '{"id":"urn:test:123"}',
+          content: '{"id":"urn:test:1"}',
           contentType: 'application/json'
+        }],
+        multipart: false
+      });
+    });
+    it('should post raw json+charset doc', async () => {
+      await _postDocs({
+        endpoint: endpoint3,
+        docs: [{
+          content: '{"id":"urn:test:2"}',
+          contentType: 'application/json; charset=utf-8'
         }],
         multipart: false
       });
