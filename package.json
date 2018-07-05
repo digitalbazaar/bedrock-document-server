@@ -34,7 +34,7 @@
     "bedrock-express": "^2.0.8",
     "bedrock-jobs": "^2.0.3",
     "bedrock-permission": "^2.4.5",
-    "bedrock-mongodb": "3.x - 5.x"
+    "bedrock-mongodb": "^5.2.0"
   },
   "directories": {
     "lib": "./lib"
