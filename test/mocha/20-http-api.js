@@ -239,7 +239,10 @@ describe('HTTP API', () => {
         multipart: false
       });
       const getRes = await rp({
-        url: docInfo.id + '?meta=MessageDigest2018'
+        url: docInfo.id,
+        qs: {
+          meta: 'MessageDigest2018'
+        }
       });
       getRes.statusCode.should.equal(200);
       should.exist(getRes.body);
@@ -261,24 +264,7 @@ describe('HTTP API', () => {
         }],
         multipart: true
       });
-      return;
-
-      // TODO
-      const postRes = await rp({
-        url: endpoint0,
-        method: 'POST',
-        formData: {
-          //attachments: [
-          //  require('fs').createReadStream(__dirname + '/../doc1.txt'),
-          //  require('fs').createReadStream(__dirname + '/../doc2.jpg'),
-          //  require('fs').createReadStream(__dirname + '/../doc3.pdf')
-          //]
-        }
-      });
       // FIXME
-      should.exist(postRes.body);
-      postRes.statusCode.should.equal(200);
-      postRes.body.should.be.an('object');
       // ... check more data
       // ... get and check each resource
     });
@@ -289,10 +275,12 @@ describe('HTTP API', () => {
           endpoint: endpoint1,
           docs: [{
             content: '[post+1]',
-            contentType: 'text/plain'
+            contentType: 'text/plain',
+            contentFilename: 'post-multipart-1'
           }, {
             content: '[post+2]',
-            contentType: 'text/plain'
+            contentType: 'text/plain',
+            contentFilename: 'post-multipart-2'
           }],
           multipart: true
         });
@@ -301,7 +289,10 @@ describe('HTTP API', () => {
       }
       should.exist(err);
       should.exist(err.statusCode, 'statusCode');
-      err.statusCode.should.equal(500);
+      err.statusCode.should.equal(400);
+      should.exist(err.error);
+      should.exist(err.error.type);
+      err.error.type.should.equal('RangeError');
       // TODO: more checks
     });
     it('should fail if raw over file size limit', async () => {
@@ -330,17 +321,17 @@ describe('HTTP API', () => {
           endpoint: endpoint1,
           docs: [{
             content: '01234567890',
-            contentType: 'text/plain'
+            contentType: 'text/plain',
+            contentFilename: 'post-multipart-1'
           }],
           multipart: true
         });
       } catch(e) {
-        // FIXME: check error
-        should.exist(e.statusCode, 'statusCode');
-        e.statusCode.should.equal(500);
         err = e;
       }
       should.exist(err)
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(400);
       // TODO: more checks
     });
     it('should fail if unknown mimetype', async () => {
@@ -350,15 +341,17 @@ describe('HTTP API', () => {
           endpoint: endpoint1,
           docs: [{
             content: '',
-            contentType: 'bogus/type'
-          }]
+            contentType: 'bogus/type',
+            contentFilename: 'post-multipart-1'
+          }],
+          multipart: true
         });
       } catch(e) {
-        // FIXME: check error
-        e.statusCode.should.equal(406);
         err = e;
       }
       should.exist(err)
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(415);
       // TODO: more checks
     });
     it('should deny duplicate doc', async () => {
@@ -390,7 +383,7 @@ describe('HTTP API', () => {
       // TODO
       // files have hash ids, what should this do?
     });
-    it('should share duplicate doc', async () => {
+    it('should share duplicate raw doc', async () => {
       const docs = [{
         content: '[dup]',
         contentType: 'text/plain'
@@ -404,6 +397,23 @@ describe('HTTP API', () => {
         endpoint: endpoint2,
         docs,
         multipart: false
+      });
+    });
+    it('should share duplicate multipart doc', async () => {
+      const docs = [{
+        content: '[dup]',
+        contentType: 'text/plain',
+        contentFilename: 'post-multipart-dup'
+      }];
+      await _postDocs({
+        endpoint: endpoint2,
+        docs,
+        multipart: true
+      });
+      await _postDocs({
+        endpoint: endpoint2,
+        docs,
+        multipart: true
       });
     });
     it.skip('should delete a doc', async () => {
