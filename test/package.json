@@ -31,7 +31,7 @@
     "bedrock-express": "^2.0.8",
     "bedrock-identity": "^4.6.0",
     "bedrock-jobs": "^2.0.3",
-    "bedrock-mongodb": "github:digitalbazaar/bedrock-mongodb#expose-driver",
+    "bedrock-mongodb": "^5.2.0",
     "bedrock-permission": "^2.3.2",
     "bedrock-server": "^2.3.1",
     "bedrock-test": "^2.0.0",
