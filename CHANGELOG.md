@@ -1,6 +1,6 @@
 # bedrock-document-server ChangeLog
 
-## 0.0.1 - 2018-xx-xx
+## 0.1.0 - 2018-07-20
 
 ### Added
 - Initial files.
