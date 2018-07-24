@@ -42,10 +42,6 @@ config['document-server'].endpoints.push({
   }
 });
 config['document-server'].endpoints.push({
-  route: '/test-dups',
-  duplicatePolicy: 'share'
-});
-config['document-server'].endpoints.push({
   route: '/test-json',
   mimeTypes: [
     'application/json'
