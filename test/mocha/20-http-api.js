@@ -33,13 +33,9 @@ const endpoint0 = bedrock.config.server.baseUri + endpointInfo0.route;
 const endpointInfo1 = bedrock.config['document-server'].endpoints[1];
 const endpoint1 = bedrock.config.server.baseUri + endpointInfo1.route;
 
-// dups
+// json
 const endpointInfo2 = bedrock.config['document-server'].endpoints[2];
 const endpoint2 = bedrock.config.server.baseUri + endpointInfo2.route;
-
-// json
-const endpointInfo3 = bedrock.config['document-server'].endpoints[3];
-const endpoint3 = bedrock.config.server.baseUri + endpointInfo3.route;
 
 describe('HTTP API', () => {
   before(done => {
@@ -169,7 +165,7 @@ describe('HTTP API', () => {
     });
     it('should post raw json+charset doc', async () => {
       await _postDocs({
-        endpoint: endpoint3,
+        endpoint: endpoint2,
         docs: [{
           content: '{"id":"urn:test:2"}',
           contentType: 'application/json; charset=utf-8'
@@ -354,7 +350,7 @@ describe('HTTP API', () => {
       err.statusCode.should.equal(415);
       // TODO: more checks
     });
-    it('should deny duplicate doc', async () => {
+    it('should allow duplicate raw doc', async () => {
       const docs = [{
         content: '[dup]',
         contentType: 'text/plain'
@@ -364,54 +360,25 @@ describe('HTTP API', () => {
         docs,
         multipart: false
       });
-      let err;
-      try {
-        await _postDocs({
-          endpoint: endpoint0,
-          docs,
-          multipart: false
-        });
-      } catch(e) {
-        err = e;
-      }
-      should.exist(err)
-      should.exist(err.statusCode, 'statusCode');
-      err.statusCode.should.equal(409);
-      // TODO: more checks
-    });
-    it.skip('should allow duplicate doc', async () => {
-      // TODO
-      // files have hash ids, what should this do?
-    });
-    it('should share duplicate raw doc', async () => {
-      const docs = [{
-        content: '[dup]',
-        contentType: 'text/plain'
-      }];
       await _postDocs({
-        endpoint: endpoint2,
-        docs,
-        multipart: false
-      });
-      await _postDocs({
-        endpoint: endpoint2,
+        endpoint: endpoint0,
         docs,
         multipart: false
       });
     });
-    it('should share duplicate multipart doc', async () => {
+    it('should allow duplicate multipart doc', async () => {
       const docs = [{
         content: '[dup]',
         contentType: 'text/plain',
         contentFilename: 'post-multipart-dup'
       }];
       await _postDocs({
-        endpoint: endpoint2,
+        endpoint: endpoint0,
         docs,
         multipart: true
       });
       await _postDocs({
-        endpoint: endpoint2,
+        endpoint: endpoint0,
         docs,
         multipart: true
       });
