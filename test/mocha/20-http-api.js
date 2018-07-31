@@ -12,13 +12,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const helpers = require('./helpers');
 const mockData = require('./mock.data');
-let request = require('request');
 let rp = require('request-promise-native');
 
-request = request.defaults({
-  json: true,
-  strictSSL: false
-});
 rp = rp.defaults({
   json: true,
   strictSSL: false,
@@ -185,6 +180,29 @@ describe('HTTP API', () => {
       });
       const getRes = await rp({
         url: docInfo.id
+      });
+      getRes.statusCode.should.equal(200);
+      should.exist(getRes.body);
+      getRes.body.should.equal(docInfo.content);
+      should.exist(getRes.headers['content-type']);
+      getRes.headers['content-type'].should.contain(docInfo.contentType);
+      // TODO
+      //getRes.headers['content-disposition'].should.equal(...);
+    });
+    it('should proxy get raw doc', async () => {
+      const docInfo = await _postDocs({
+        endpoint: endpoint0,
+        docs: [{
+          content: '[post+raw+get+proxy]',
+          contentType: 'text/plain'
+        }],
+        multipart: false
+      });
+      const getRes = await rp({
+        url: bedrock.config.server.baseUri + '/document-storage/proxy',
+        qs: {
+          url: docInfo.id
+        }
       });
       getRes.statusCode.should.equal(200);
       should.exist(getRes.body);
