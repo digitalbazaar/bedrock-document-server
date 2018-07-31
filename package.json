@@ -34,6 +34,7 @@
     "bedrock": "^1.12.1",
     "bedrock-express": "^2.0.8",
     "bedrock-jobs": "^2.0.3",
+    "bedrock-passport": "^4.0.2",
     "bedrock-permission": "^2.4.5",
     "bedrock-mongodb": "^5.2.0"
   },
