@@ -3,11 +3,11 @@
  */
 'use strict';
 
-const async = require('async');
 const bedrock = require('bedrock');
 const config = bedrock.config;
 const brIdentity = require('bedrock-identity');
 const database = require('bedrock-mongodb');
+const {promisify} = require('util');
 
 const api = {};
 module.exports = api;
