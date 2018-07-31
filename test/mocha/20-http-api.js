@@ -246,6 +246,35 @@ describe('HTTP API', () => {
       should.exist(getRes.headers['content-type']);
       getRes.headers['content-type'].should.contain('application/json');
     });
+    it('should fail for missing doc', async () => {
+      let err;
+      try {
+        const getRes = await rp({
+          url: endpoint0 + '/bogus'
+        });
+      } catch(e) {
+        err = e;
+      }
+      should.exist(err);
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(404);
+    });
+    it('should fail for missing doc meta', async () => {
+      let err;
+      try {
+        const getRes = await rp({
+          url: endpoint0 + '/bogus',
+          qs: {
+            meta: 'MessageDigest2018'
+          }
+        });
+      } catch(e) {
+        err = e;
+      }
+      should.exist(err);
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(404);
+    });
     it.skip('should post many docs', async () => {
       await _postDocs({
         endpoint: endpoint0,
