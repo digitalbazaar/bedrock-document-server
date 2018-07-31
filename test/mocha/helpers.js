@@ -31,45 +31,36 @@ api.createIdentity = function(userName, userId) {
 };
 
 // collections may be a string or array
-api.removeCollections = function(collections, callback) {
-  const collectionNames = [].concat(collections);
-  database.openCollections(collectionNames, () => {
-    async.each(collectionNames, function(collectionName, callback) {
-      if(!database.collections[collectionName]) {
-        return callback();
-      }
-      database.collections[collectionName].remove({}, callback);
-    }, function(err) {
-      callback(err);
-    });
-  });
+api.removeCollections = async (collectionNames = ['identity']) => {
+  await promisify(database.openCollections)(collectionNames);
+  for(const collectionName of collectionNames) {
+    if(database.collections[collectionName]) {
+      await database.collections[collectionName].remove({});
+    }
+  }
 };
 
-api.prepareDatabase = function(mockData, callback) {
-  async.series([
-    callback => {
-      api.removeCollections([
-        'identity', 'documentServer'
-      ], callback);
-      // FIXME: drop all buckets based on config
-    },
-    callback => {
-      insertTestData(mockData, callback);
-    }
-  ], callback);
+api.prepareDatabase = async mockData => {
+  await api.removeCollections(['identity', 'documentServer']);
+  // FIXME: drop all buckets based on config
+  await insertTestData(mockData);
 };
 
 // Insert identities and public keys used for testing into database
-function insertTestData(mockData, callback) {
-  async.forEachOf(mockData.identities, (identity, key, callback) => {
-    brIdentity.insert(null, identity.identity, callback);
-  }, err => {
-    if(err) {
-      if(!database.isDuplicateError(err)) {
+async function insertTestData(mockData) {
+  const records = Object.values(mockData.identities);
+  for(const record of records) {
+    try {
+      await Promise.all([
+        brIdentity.insert(
+          {actor: null, identity: record.identity, meta: record.meta || {}})
+      ]);
+    } catch(e) {
+      if(e.name === 'DuplicateError') {
         // duplicate error means test data is already loaded
-        return callback(err);
+        continue;
       }
+      throw e;
     }
-    callback();
-  }, callback);
+  }
 }
