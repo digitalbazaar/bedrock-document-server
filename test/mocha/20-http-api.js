@@ -38,23 +38,13 @@ const endpointInfo2 = bedrock.config['document-server'].endpoints[2];
 const endpoint2 = bedrock.config.server.baseUri + endpointInfo2.route;
 
 describe('HTTP API', () => {
-  before(done => {
-    async.series([
-      callback => helpers.prepareDatabase(mockData, callback)
-    ], done);
-  });
+  before(() => helpers.prepareDatabase(mockData));
   describe('regularUser as actor', () => {
     const mockIdentity = mockData.identities.regularUser;
     let actor;
-    /*
-    before(done => async.auto({
-      getActor: callback => brIdentity.get(
-        null, mockIdentity.identity.id, (err, result) => {
-          actor = result;
-          callback(err);
-        })
-    }, done));
-    */
+    before(async () => {
+      actor = await brIdentity.get({actor: null, id: mockIdentity.identity.id});
+    });
 
     async function _postDocs({
       endpoint = null,
