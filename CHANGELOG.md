@@ -1,5 +1,8 @@
 # bedrock-document-server ChangeLog
 
+### Added
+- Add proxy endpoint with plugin support.
+
 ### Changed
 - **BREAKING**: Remove duplicatePolicy support.
 - Change from using digest values in URLs to random ids to allow for multiple
