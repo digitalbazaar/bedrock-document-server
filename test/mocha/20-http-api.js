@@ -27,7 +27,6 @@ brDocServer.use('mockPlugin', {
   type: 'proxyPlugin',
   api: {
     async decorateRequest({proxyRequest, originalRequest}) {
-      try {
       if('object-capability' in originalRequest.headers) {
         // invoke ocaps via http-signature
         const {'object-capability': value} = originalRequest.headers;
@@ -37,7 +36,6 @@ brDocServer.use('mockPlugin', {
           {algorithm: 'rsa-sha256', identity, requestOptions: proxyRequest,
             additionalIncludeHeaders: ['object-capability']});
       }
-      }catch(e) {console.error(e)}
     }
   }
 });
