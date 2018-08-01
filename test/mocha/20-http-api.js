@@ -6,6 +6,7 @@
 const async = require('async');
 const base64url = require('base64url');
 const bedrock = require('bedrock');
+const brDocServer = require('bedrock-document-server');
 const brIdentity = require('bedrock-identity');
 const contentType = require('content-type');
 const crypto = require('crypto');
@@ -14,10 +15,31 @@ const helpers = require('./helpers');
 const mockData = require('./mock.data');
 let rp = require('request-promise-native');
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 rp = rp.defaults({
   json: true,
   strictSSL: false,
   resolveWithFullResponse: true
+});
+
+brDocServer.use('mockPlugin', {
+  type: 'proxyPlugin',
+  api: {
+    async decorateRequest({proxyRequest, originalRequest}) {
+      try {
+      if('object-capability' in originalRequest.headers) {
+        // invoke ocaps via http-signature
+        const {'object-capability': value} = originalRequest.headers;
+        proxyRequest.headers['object-capability'] = value;
+        const identity = mockData.identities.regularUser;
+        await helpers.createHttpSignatureRequest(
+          {algorithm: 'rsa-sha256', identity, requestOptions: proxyRequest,
+            additionalIncludeHeaders: ['object-capability']});
+      }
+      }catch(e) {console.error(e)}
+    }
+  }
 });
 
 // basic
@@ -188,45 +210,6 @@ describe('HTTP API', () => {
       getRes.headers['content-type'].should.contain(docInfo.contentType);
       // TODO
       //getRes.headers['content-disposition'].should.equal(...);
-    });
-    it('should proxy get raw doc', async () => {
-      const docInfo = await _postDocs({
-        endpoint: endpoint0,
-        docs: [{
-          content: '[post+raw+get+proxy]',
-          contentType: 'text/plain'
-        }],
-        multipart: false
-      });
-      const getRes = await rp({
-        url: bedrock.config.server.baseUri + '/document-storage/proxy',
-        qs: {
-          url: docInfo.id
-        }
-      });
-      getRes.statusCode.should.equal(200);
-      should.exist(getRes.body);
-      getRes.body.should.equal(docInfo.content);
-      should.exist(getRes.headers['content-type']);
-      getRes.headers['content-type'].should.contain(docInfo.contentType);
-      // TODO
-      //getRes.headers['content-disposition'].should.equal(...);
-    });
-    it('should fail to proxy missing doc', async () => {
-      let err;
-      try {
-        const getRes = await rp({
-          url: bedrock.config.server.baseUri + '/document-storage/proxy',
-          qs: {
-            url: bedrock.config.server.baseUri + '/bogus'
-          }
-        });
-      } catch(e) {
-        err = e;
-      }
-      should.exist(err);
-      should.exist(err.statusCode, 'statusCode');
-      err.statusCode.should.equal(404);
     });
     it('should get multipart doc', async () => {
       const docInfo = await _postDocs({
@@ -438,6 +421,74 @@ describe('HTTP API', () => {
     });
     it.skip('should delete a doc', async () => {
       // TODO
+    });
+    it('should proxy get raw doc', async () => {
+      const docInfo = await _postDocs({
+        endpoint: endpoint0,
+        docs: [{
+          content: '[post+raw+get+proxy]',
+          contentType: 'text/plain'
+        }],
+        multipart: false
+      });
+      const getRes = await rp({
+        url: bedrock.config.server.baseUri + '/document-storage/proxy',
+        qs: {
+          url: docInfo.id
+        }
+      });
+      getRes.statusCode.should.equal(200);
+      should.exist(getRes.body);
+      getRes.body.should.equal(docInfo.content);
+      should.exist(getRes.headers['content-type']);
+      getRes.headers['content-type'].should.contain(docInfo.contentType);
+      // TODO
+      //getRes.headers['content-disposition'].should.equal(...);
+    });
+    it('should proxy 4xx for missing doc', async () => {
+      let err;
+      try {
+        const getRes = await rp({
+          url: bedrock.config.server.baseUri + '/document-storage/proxy',
+          headers: {
+            accept: 'application/json'
+          },
+          qs: {
+            url: bedrock.config.server.baseUri + '/bogus'
+          }
+        });
+      } catch(e) {
+        err = e;
+      }
+      should.exist(err);
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.be.gte(400);
+    });
+    it('should proxy using an ocap plugin', async () => {
+      const invocationTarget = 'urn:uuid:5678-5678-5678-5678';
+      const ocap = JSON.stringify({
+        id: 'urn:uuid:1234-1234-1234-1234',
+        invocationTarget
+      });
+      const action = 'foo';
+      const getRes = await rp({
+        headers: {
+          'object-capability':
+            `type=ocapld; value=${base64url(ocap)}; ` +
+            `action=${base64url(action)}`
+        },
+        method: 'get',
+        url: bedrock.config.server.baseUri + '/document-storage/proxy',
+        qs: {
+          url: bedrock.config.server.baseUri +
+            '/tests/bedrock-document-server/ocap-required?resource=' +
+            encodeURIComponent(invocationTarget),
+          plugin: 'mockPlugin'
+        }
+      });
+      getRes.statusCode.should.equal(200);
+      should.exist(getRes.body);
+      getRes.body.id.should.equal(invocationTarget);
     });
   });
 });

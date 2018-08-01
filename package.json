@@ -36,7 +36,7 @@
     "bedrock-express": "^2.0.8",
     "bedrock-injector": "^1.0.0",
     "bedrock-jobs": "^2.0.3",
-    "bedrock-passport": "^4.0.2",
+    "bedrock-passport": "digitalbazaar/bedrock-passport#support-ocap-ld",
     "bedrock-permission": "^2.4.5",
     "bedrock-mongodb": "^5.2.0"
   },
