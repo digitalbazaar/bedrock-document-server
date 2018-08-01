@@ -212,6 +212,22 @@ describe('HTTP API', () => {
       // TODO
       //getRes.headers['content-disposition'].should.equal(...);
     });
+    it('should fail to proxy missing doc', async () => {
+      let err;
+      try {
+        const getRes = await rp({
+          url: bedrock.config.server.baseUri + '/document-storage/proxy',
+          qs: {
+            url: bedrock.config.server.baseUri + '/bogus'
+          }
+        });
+      } catch(e) {
+        err = e;
+      }
+      should.exist(err);
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(404);
+    });
     it('should get multipart doc', async () => {
       const docInfo = await _postDocs({
         endpoint: endpoint0,
