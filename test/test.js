@@ -8,10 +8,10 @@ const bedrock = require('bedrock');
 // load plugins
 require('bedrock-server');
 require('bedrock-document-server');
+require('./server');
 
 bedrock.events.on('bedrock.init', () => {
-  //const jsonld = bedrock.jsonld;
-  const mockData = require('./mocha/mock.data');
+  require('./mocha/mock.data');
 });
 
 require('bedrock-test');

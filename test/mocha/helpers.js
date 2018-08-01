@@ -6,8 +6,12 @@
 const bedrock = require('bedrock');
 const config = bedrock.config;
 const brIdentity = require('bedrock-identity');
+const brKey = require('bedrock-key');
 const database = require('bedrock-mongodb');
+const jsprim = require('jsprim');
+const httpSignatureHeader = require('http-signature-header');
 const {promisify} = require('util');
+const signatureAlgorithms = require('signature-algorithms');
 
 const api = {};
 module.exports = api;
@@ -16,16 +20,10 @@ api.createIdentity = function(userName, userId) {
   userId = userId || 'did:v1:' + uuid();
   const newIdentity = {
     id: userId,
-    type: 'Identity',
-    sysSlug: userName,
     label: userName,
     email: userName + '@bedrock.dev',
-    sysPassword: 'password',
-    sysPublic: ['label', 'url', 'description'],
-    sysResourceRole: [],
     url: 'https://example.com',
-    description: userName,
-    sysStatus: 'active'
+    description: userName
   };
   return newIdentity;
 };
@@ -41,9 +39,75 @@ api.removeCollections = async (collectionNames = ['identity']) => {
 };
 
 api.prepareDatabase = async mockData => {
-  await api.removeCollections(['identity', 'documentServer']);
+  await api.removeCollections(['identity', 'documentServer', 'publicKey']);
   // FIXME: drop all buckets based on config
   await insertTestData(mockData);
+};
+
+api.createHttpSignatureRequest = async (
+  {algorithm, identity, requestOptions, additionalIncludeHeaders = []}) => {
+  if(!requestOptions.headers.date) {
+    requestOptions.headers.date = jsprim.rfc1123(new Date());
+  }
+  const includeHeaders = additionalIncludeHeaders.concat(
+    ['date', 'host', '(request-target)']);
+  const plaintext = httpSignatureHeader.createSignatureString(
+    {includeHeaders, requestOptions});
+  const keyId = identity.keys.publicKey.id;
+  const authzHeaderOptions = {includeHeaders, keyId};
+  const cryptoOptions = {plaintext};
+  if(algorithm.startsWith('rsa')) {
+    authzHeaderOptions.algorithm = algorithm;
+    const alg = algorithm.split('-');
+    const {privateKeyPem} = identity.keys.privateKey;
+    cryptoOptions.algorithm = alg[0];
+    cryptoOptions.privateKeyPem = privateKeyPem;
+    cryptoOptions.hashType = alg[1];
+  }
+  if(algorithm === 'ed25519') {
+    const {privateKeyBase58} = identity.keys.privateKey;
+    cryptoOptions.algorithm = algorithm;
+    cryptoOptions.privateKeyBase58 = privateKeyBase58;
+  }
+  authzHeaderOptions.signature = await signatureAlgorithms.sign(cryptoOptions);
+  requestOptions.headers.Authorization = httpSignatureHeader.createAuthzHeader(
+    authzHeaderOptions);
+};
+
+api.createKeyPair = options => {
+  const {publicKey, privateKey, publicKeyBase58, privateKeyBase58, userName} =
+    options;
+  let ownerId = null;
+  const keyId = options.keyId;
+  if(userName === 'userUnknown') {
+    ownerId = '';
+  } else {
+    ownerId = options.userId;
+  }
+  const newKeyPair = {
+    publicKey: {
+      '@context': 'https://w3id.org/identity/v1',
+      id: 'https://' + config.server.host + '/keys/' + keyId,
+      owner: ownerId,
+      label: 'Signing Key 1',
+    },
+    privateKey: {
+      owner: ownerId,
+      label: 'Signing Key 1',
+      publicKey: 'https://' + config.server.host + '/keys/' + keyId,
+    }
+  };
+  if(publicKey && privateKey) {
+    newKeyPair.publicKey.type = 'RsaVerificationKey2018';
+    newKeyPair.publicKey.publicKeyPem = publicKey;
+    newKeyPair.privateKey.privateKeyPem = privateKey;
+  }
+  if(publicKeyBase58 && privateKeyBase58) {
+    newKeyPair.publicKey.type = 'Ed25519VerificationKey2018';
+    newKeyPair.publicKey.publicKeyBase58 = publicKeyBase58;
+    newKeyPair.privateKey.privateKeyBase58 = privateKeyBase58;
+  }
+  return newKeyPair;
 };
 
 // Insert identities and public keys used for testing into database
@@ -53,7 +117,9 @@ async function insertTestData(mockData) {
     try {
       await Promise.all([
         brIdentity.insert(
-          {actor: null, identity: record.identity, meta: record.meta || {}})
+          {actor: null, identity: record.identity, meta: record.meta || {}}),
+        record.identity.keys ? brKey.addPublicKey(
+          {actor: null, publicKey: record.identity.keys.publicKey}) : null
       ]);
     } catch(e) {
       if(e.name === 'DuplicateError') {
