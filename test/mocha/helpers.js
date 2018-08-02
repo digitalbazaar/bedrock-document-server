@@ -3,10 +3,9 @@
  */
 'use strict';
 
-const bedrock = require('bedrock');
-const config = bedrock.config;
 const brIdentity = require('bedrock-identity');
 const brKey = require('bedrock-key');
+const {config} = require('bedrock');
 const database = require('bedrock-mongodb');
 const jsprim = require('jsprim');
 const httpSignatureHeader = require('http-signature-header');
@@ -16,7 +15,7 @@ const signatureAlgorithms = require('signature-algorithms');
 const api = {};
 module.exports = api;
 
-api.createIdentity = function(userName, userId) {
+api.createIdentity = (userName, userId) => {
   userId = userId || 'did:v1:' + uuid();
   const newIdentity = {
     id: userId,
@@ -73,6 +72,20 @@ api.createHttpSignatureRequest = async (
   requestOptions.headers.Authorization = httpSignatureHeader.createAuthzHeader(
     authzHeaderOptions);
 };
+
+/* TODO
+api.delegateOcap = async ({ocap, identity}) => {
+  return jsigs.sign(ocap, {
+    algorithm: 'Ed25519Signature2018',
+    creator: identity.keys.publicKey.id,
+    privateKeyBase58: identity.keys.privateKey.privateKeyBase58,
+    proof: {
+      '@context': 'https://w3id.org/security/v2',
+      proofPurpose: 'capabilityDelegation'
+    }
+  });
+};
+*/
 
 api.createKeyPair = options => {
   const {publicKey, privateKey, publicKeyBase58, privateKeyBase58, userName} =
