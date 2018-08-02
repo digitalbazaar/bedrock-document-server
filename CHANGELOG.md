@@ -2,6 +2,8 @@
 
 ### Added
 - Add proxy endpoint with plugin support.
+- Require authentication on `get` endpoint.
+- Add ocap support on `get` endpoint.
 
 ### Changed
 - **BREAKING**: Remove duplicatePolicy support.
