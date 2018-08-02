@@ -19,12 +19,24 @@ config.mongodb.dropCollections.collections = [];
 
 roles['bedrock-document-server.test'] = {
   id: 'bedrock-document-server.test',
-  label: 'Test Role',
+  label: 'Document Server Test Role',
   comment: 'Role for Test User',
   sysPermission: [
     permissions.DOCUMENT_ACCESS.id,
     permissions.DOCUMENT_CREATE.id,
     permissions.DOCUMENT_REMOVE.id
+  ]
+};
+
+roles['bedrock-document-server.admin'] = {
+  id: 'bedrock-document-server.admin',
+  label: 'Document Server Test Admin Role',
+  comment: 'Role for Admin User',
+  sysPermission: [
+    permissions.DOCUMENT_ACCESS.id,
+    permissions.DOCUMENT_CREATE.id,
+    permissions.DOCUMENT_REMOVE.id,
+    permissions.DOCUMENT_META_UPDATE.id
   ]
 };
 
