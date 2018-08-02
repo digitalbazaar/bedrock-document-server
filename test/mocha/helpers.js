@@ -73,6 +73,20 @@ api.createHttpSignatureRequest = async (
     authzHeaderOptions);
 };
 
+/* TODO
+api.delegateOcap = async ({ocap, identity}) => {
+  return jsigs.sign(ocap, {
+    algorithm: 'Ed25519Signature2018',
+    creator: identity.keys.publicKey.id,
+    privateKeyBase58: identity.keys.privateKey.privateKeyBase58,
+    proof: {
+      '@context': 'https://w3id.org/security/v2',
+      proofPurpose: 'capabilityDelegation'
+    }
+  });
+};
+*/
+
 api.createKeyPair = options => {
   const {publicKey, privateKey, publicKeyBase58, privateKeyBase58, userName} =
     options;

@@ -33,8 +33,15 @@ brDocServer.use('mockPlugin', {
         proxyRequest.headers['object-capability'] = value;
         const identity = mockData.identities.regularUser;
         await helpers.createHttpSignatureRequest(
+          //{algorithm: 'ed25519', identity, requestOptions: proxyRequest,
+          //  additionalIncludeHeaders: ['object-capability']});
           {algorithm: 'rsa-sha256', identity, requestOptions: proxyRequest,
             additionalIncludeHeaders: ['object-capability']});
+      } else {
+        const identity = mockData.identities.regularUser;
+        await helpers.createHttpSignatureRequest(
+          //{algorithm: 'ed25519', identity, requestOptions: proxyRequest});
+          {algorithm: 'rsa-sha256', identity, requestOptions: proxyRequest});
       }
     }
   }
@@ -62,6 +69,8 @@ describe('HTTP API', () => {
     });
 
     async function _postDocs({
+      identity = mockData.identities.regularUser,
+      algorithm = 'rsa-sha256',
       endpoint = null,
       salt = '',
       docs,
@@ -71,9 +80,11 @@ describe('HTTP API', () => {
       if(!multipart && docs.length !== 1) {
         throw new RangeError('More than one doc for non-mulitpart test');
       }
-      const req = {
-        url: endpoint,
-        method: 'POST'
+
+      const requestOptions = {
+        headers: {},
+        method: 'post',
+        url: endpoint
       };
       if(multipart) {
         const attachments = docs.map(doc => {
@@ -85,19 +96,21 @@ describe('HTTP API', () => {
             }
           };
         });
-        req.formData = {
+        requestOptions.formData = {
           //attachment: fs.createReadStream(__dirname + '/mock.data.js')
           attachment: attachments
         };
       } else {
-        req.body = docs[0].content;
-        req.json = false;
-        req.headers = {
+        requestOptions.body = docs[0].content;
+        requestOptions.json = false;
+        requestOptions.headers = {
           accept: 'application/json',
           'content-type': docs[0].contentType
         };
       }
-      const postRes = await rp(req);
+      await helpers.createHttpSignatureRequest(
+        {algorithm: 'rsa-sha256', identity, requestOptions});
+      const postRes = await rp(requestOptions);
       should.exist(postRes.body);
       // ensure always have json body
       let body = multipart ? postRes.body : JSON.parse(postRes.body);
@@ -198,9 +211,16 @@ describe('HTTP API', () => {
         }],
         multipart: false
       });
-      const getRes = await rp({
+
+      const requestOptions = {
+        headers: {},
+        method: 'get',
         url: docInfo.id
-      });
+      };
+      const identity = mockData.identities.regularUser;
+      await helpers.createHttpSignatureRequest(
+        {algorithm: 'rsa-sha256', identity, requestOptions});
+      const getRes = await rp(requestOptions);
       getRes.statusCode.should.equal(200);
       should.exist(getRes.body);
       getRes.body.should.equal(docInfo.content);
@@ -219,9 +239,15 @@ describe('HTTP API', () => {
         }],
         multipart: true
       });
-      const getRes = await rp({
+      const requestOptions = {
+        headers: {},
+        method: 'get',
         url: docInfo.id
-      });
+      };
+      const identity = mockData.identities.regularUser;
+      await helpers.createHttpSignatureRequest(
+        {algorithm: 'rsa-sha256', identity, requestOptions});
+      const getRes = await rp(requestOptions);
       getRes.statusCode.should.equal(200);
       should.exist(getRes.body);
       getRes.body.should.equal(docInfo.content);
@@ -239,12 +265,15 @@ describe('HTTP API', () => {
         }],
         multipart: false
       });
-      const getRes = await rp({
-        url: docInfo.id,
-        qs: {
-          meta: 'MessageDigest2018'
-        }
-      });
+      const requestOptions = {
+        headers: {},
+        method: 'get',
+        url: docInfo.id + '?meta=MessageDigest2018'
+      };
+      const identity = mockData.identities.regularUser;
+      await helpers.createHttpSignatureRequest(
+        {algorithm: 'rsa-sha256', identity, requestOptions});
+      const getRes = await rp(requestOptions);
       getRes.statusCode.should.equal(200);
       should.exist(getRes.body);
       getRes.body.should.deep.equal(docInfo.response);
@@ -254,9 +283,15 @@ describe('HTTP API', () => {
     it('should fail for missing doc', async () => {
       let err;
       try {
-        const getRes = await rp({
+        const requestOptions = {
+          headers: {},
+          method: 'get',
           url: endpoint0 + '/bogus'
-        });
+        };
+        const identity = mockData.identities.regularUser;
+        await helpers.createHttpSignatureRequest(
+          {algorithm: 'rsa-sha256', identity, requestOptions});
+        const getRes = await rp(requestOptions);
       } catch(e) {
         err = e;
       }
@@ -267,18 +302,23 @@ describe('HTTP API', () => {
     it('should fail for missing doc meta', async () => {
       let err;
       try {
-        const getRes = await rp({
-          url: endpoint0 + '/bogus',
-          qs: {
-            meta: 'MessageDigest2018'
-          }
-        });
+        const requestOptions = {
+          headers: {},
+          method: 'get',
+          url: endpoint0 + '/bogus' + '?meta=MessageDigest2018'
+        };
+        const identity = mockData.identities.regularUser;
+        await helpers.createHttpSignatureRequest(
+          {algorithm: 'rsa-sha256', identity, requestOptions});
+        const getRes = await rp(requestOptions);
       } catch(e) {
         err = e;
       }
       should.exist(err);
       should.exist(err.statusCode, 'statusCode');
       err.statusCode.should.equal(404);
+    });
+    it.skip('should fail for wrong owner', async () => {
     });
     it.skip('should post many docs', async () => {
       await _postDocs({
@@ -418,7 +458,33 @@ describe('HTTP API', () => {
       });
     });
     it.skip('should delete a doc', async () => {
-      // TODO
+      // add doc
+      const docInfo = await _postDocs({
+        endpoint: endpoint0,
+        docs: [{
+          content: '[delete]',
+          contentType: 'text/plain'
+        }],
+        multipart: false
+      });
+      // delete doc
+      const delRes = await rp({
+        method: 'DELETE',
+        url: docInfo.id
+      });
+      delRes.statusCode.should.equal(204);
+      // check doc gone
+      let err;
+      try {
+        const getRes = await rp({
+          url: docInfo.id
+        });
+      } catch(e) {
+        err = e;
+      }
+      should.exist(err);
+      should.exist(err.statusCode, 'statusCode');
+      err.statusCode.should.equal(404);
     });
     it('should proxy get raw doc', async () => {
       const docInfo = await _postDocs({
@@ -432,7 +498,8 @@ describe('HTTP API', () => {
       const getRes = await rp({
         url: bedrock.config.server.baseUri + '/document-storage/proxy',
         qs: {
-          url: docInfo.id
+          url: docInfo.id,
+          plugin: 'mockPlugin'
         }
       });
       getRes.statusCode.should.equal(200);
@@ -452,7 +519,8 @@ describe('HTTP API', () => {
             accept: 'application/json'
           },
           qs: {
-            url: bedrock.config.server.baseUri + '/bogus'
+            url: bedrock.config.server.baseUri + '/bogus',
+            plugin: 'mockPlugin'
           }
         });
       } catch(e) {
